@@ -1,3 +1,64 @@
-git add .github/workflows/cypress-ci.yml
-git commit -m "Adiciona CI com GitHub Actions para testes Cypress"
-git push
+name: Testes E2E (Cypress)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  cypress-run:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Instalar dependências (raiz - Cypress)
+        run: npm install
+
+      - name: Instalar dependências (web)
+        run: npm install
+        working-directory: web
+
+      - name: Instalar json-server
+        run: npm install -g json-server
+
+      - name: Subir front-end (web) em background
+        run: npm start &
+        working-directory: web
+        env:
+          CI: false
+          BROWSER: none
+
+      - name: Subir API fake (json-server) em background
+        run: json-server --watch db.json -p 8080 &
+        working-directory: web
+
+      - name: Esperar front-end (porta 3000)
+        run: npx wait-on http://localhost:3000 --timeout 120000
+
+      - name: Esperar API (porta 8080)
+        run: npx wait-on http://localhost:8080 --timeout 60000
+
+      - name: Rodar testes Cypress
+        run: npx cypress run
+
+      - name: Publicar relatório (mochawesome)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relatorio-cypress
+          path: cypress/results
+
+      - name: Publicar screenshots (em caso de falha)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots-cypress
+          path: cypress/screenshots
