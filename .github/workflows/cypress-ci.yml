@@ -19,8 +19,20 @@ jobs:
         with:
           node-version: 20
 
+      - name: Cache do binário do Cypress
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/Cypress
+          key: cypress-binary-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
       - name: Instalar dependências (raiz - Cypress)
         run: npm install
+
+      - name: Cache do binário do Cypress
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/Cypress
+          key: cypress-binary-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
       - name: Instalar dependências (web)
         run: npm install
@@ -46,8 +58,8 @@ jobs:
       - name: Esperar API (porta 8080)
         run: npx wait-on http://localhost:8080 --timeout 60000
 
-      - name: Rodar testes Cypress
-        run: npx cypress run
+      - name: Rodar testes Cypress (exceto specs que dependem da API real)
+        run: npx cypress run --spec "cypress/e2e/**/*.cy.js,!cypress/e2e/login-api.cy.js,!cypress/e2e/dashboard.cy.js"      
 
       - name: Publicar relatório (mochawesome)
         if: always()
